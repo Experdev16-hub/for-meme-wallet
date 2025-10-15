@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
     
     addWallet(walletData)
-    const stats = getWalletStats()
+    const stats = await getWalletStats()
 
     // Send notification to Telegram
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
 // Command handlers
 async function handleStartCommand(chatId: string | number) {
-  const stats = getWalletStats()
+  const stats = await getWalletStats()
   const message = `🤖 *Welcome to for.meme Bot!*\n\n` +
     `I manage wallet registrations from the for.meme website.\n\n` +
     `📊 *Current Stats:*\n` +
