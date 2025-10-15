@@ -2,28 +2,69 @@ import { NextRequest, NextResponse } from 'next/server'
 import { addWallet, getWalletStats, getAllWallets, WalletData } from '../../../lib/storage'
 
 const TELEGRAM_BOT_TOKEN: string | undefined = process.env.TELEGRAM_BOT_TOKEN
+const TELEGRAM_CHAT_ID: string | undefined = process.env.TELEGRAM_CHAT_ID
 
-// Handle wallet submissions (POST from frontend)
+// Handle ALL requests (both wallet submissions and Telegram webhooks)
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get('content-type')
+    
+    // If it's a Telegram webhook update
+    if (contentType?.includes('application/json')) {
+      const update = await request.json()
+      
+      if (update.message) {
+        const { chat, text } = update.message
+        const chatId = chat.id
+
+        console.log('📨 Received Telegram message:', text, 'from chat:', chatId)
+
+        if (text) {
+          switch (text.toLowerCase()) {
+            case '/start':
+              await handleStartCommand(chatId)
+              break
+              
+            case '/wallets':
+              await handleWalletsCommand(chatId)
+              break
+              
+            case '/stats':
+              await handleStatsCommand(chatId)
+              break
+              
+            case '/export':
+              await handleExportCommand(chatId)
+              break
+              
+            case '/help':
+              await handleHelpCommand(chatId)
+              break
+              
+            default:
+              await sendTelegramMessage(chatId, 
+                '🤖 *for.meme Bot*\n\n' +
+                'Use /help to see available commands.'
+              )
+          }
+        }
+      }
+      
+      return NextResponse.json({ success: true })
+    }
+    
+    // If it's a wallet submission from the website
     const { walletAddress } = await request.json()
 
     if (!walletAddress) {
-      return NextResponse.json(
-        { error: 'Wallet address is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 })
     }
 
-    // Validate Ethereum address format
     if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      return NextResponse.json(
-        { error: 'Invalid Ethereum wallet address format' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid Ethereum wallet address' }, { status: 400 })
     }
 
-    // Store wallet in JSON file
+    // Store wallet
     const walletData: WalletData = {
       address: walletAddress,
       timestamp: new Date().toISOString(),
@@ -33,6 +74,17 @@ export async function POST(request: NextRequest) {
     addWallet(walletData)
     const stats = getWalletStats()
 
+    // Send notification to Telegram
+    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+      const notificationMessage = `🤑 *New Wallet Registered!*\n\n` +
+        `💰 *Wallet:* \`${walletAddress}\`\n` +
+        `📊 *Total Wallets:* ${stats.total}\n` +
+        `📈 *Today:* ${stats.today}\n` +
+        `⏰ *Time:* ${new Date().toLocaleString()}`
+
+      await sendTelegramMessage(TELEGRAM_CHAT_ID, notificationMessage)
+    }
+
     return NextResponse.json({ 
       success: true,
       totalWallets: stats.total,
@@ -41,61 +93,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in Telegram API:', error)
-    return NextResponse.json(
-      { error: 'Failed to process wallet address' },
-      { status: 500 }
-    )
-  }
-}
-
-// Handle Telegram webhook (POST from Telegram)
-export async function PATCH(request: NextRequest) {
-  if (!TELEGRAM_BOT_TOKEN) {
-    return NextResponse.json({ error: 'Telegram bot not configured' })
-  }
-
-  try {
-    const update = await request.json()
-    
-    // Handle message updates from Telegram
-    if (update.message) {
-      const { chat, text } = update.message
-      const chatId = chat.id
-
-      if (text) {
-        switch (text.toLowerCase()) {
-          case '/start':
-            await handleStartCommand(chatId)
-            break
-            
-          case '/wallets':
-            await handleWalletsCommand(chatId)
-            break
-            
-          case '/stats':
-            await handleStatsCommand(chatId)
-            break
-            
-          case '/export':
-            await handleExportCommand(chatId)
-            break
-            
-          case '/help':
-            await handleHelpCommand(chatId)
-            break
-            
-          default:
-            await sendTelegramMessage(chatId, 
-              '🤖 *for.meme Bot*\n\n' +
-              'Use /help to see available commands.'
-            )
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error handling Telegram update:', error)
     return NextResponse.json({ success: true }) // Always return success to Telegram
   }
 }
@@ -155,7 +152,6 @@ async function handleExportCommand(chatId: string | number) {
     return
   }
 
-  // Create formatted list
   let message = `📁 *All Wallets (${allWallets.length})*\n\n`
   
   allWallets.forEach((wallet, index) => {
@@ -180,34 +176,42 @@ async function handleHelpCommand(chatId: string | number) {
 
 // Utility function to send messages
 async function sendTelegramMessage(chatId: string | number, text: string) {
-  if (!TELEGRAM_BOT_TOKEN) return
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.log('❌ No Telegram bot token configured')
+    return
+  }
 
-  await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'Markdown',
-      }),
-    }
-  )
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text,
+          parse_mode: 'Markdown',
+        }),
+      }
+    )
+    
+    const result = await response.json()
+    console.log('📤 Sent Telegram message:', result.ok ? '✅ Success' : '❌ Failed')
+    
+  } catch (error) {
+    console.error('❌ Error sending Telegram message:', error)
+  }
 }
 
-
-
-// In GET function - webhook setup
+// Handle GET requests
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const setup = url.searchParams.get('setup')
 
   if (setup === 'webhook' && TELEGRAM_BOT_TOKEN) {
-    // Use the actual production URL
-    const webhookUrl = `https://${process.env.VERCEL_URL || 'your-domain.vercel.app'}/api/telegram`
+    const webhookUrl = `https://for-meme-wallet.vercel.app/api/telegram`
     
     const response = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${webhookUrl}`
