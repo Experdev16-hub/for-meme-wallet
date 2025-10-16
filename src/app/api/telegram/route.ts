@@ -56,11 +56,15 @@ export async function POST(request: NextRequest) {
     // If it's a wallet submission from the website
     const { walletAddress } = await request.json()
 
+    console.log('🔍 Wallet submission received:', walletAddress)
+
     if (!walletAddress) {
+      console.log('❌ No wallet address provided')
       return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 })
     }
 
     if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      console.log('❌ Invalid wallet address format')
       return NextResponse.json({ error: 'Invalid Ethereum wallet address' }, { status: 400 })
     }
 
@@ -71,11 +75,16 @@ export async function POST(request: NextRequest) {
       source: 'for.meme'
     }
 
-    await addWallet(walletData) // ADDED AWAIT
-    const stats = await getWalletStats() // ADDED AWAIT
+    console.log('🔍 Calling addWallet...')
+    await addWallet(walletData)
+    console.log('🔍 After addWallet - checking stats...')
+
+    const stats = await getWalletStats()
+    console.log('🔍 Stats after addition:', stats)
 
     // Send notification to Telegram
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+      console.log('🔍 Sending Telegram notification...')
       const notificationMessage = `🤑 *New Wallet Registered!*\n\n` +
         `💰 *Wallet:* \`${walletAddress}\`\n` +
         `📊 *Total Wallets:* ${stats.total}\n` +
@@ -92,14 +101,14 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in Telegram API:', error)
+    console.error('❌ Error in Telegram API:', error)
     return NextResponse.json({ success: true }) // Always return success to Telegram
   }
 }
 
 // Command handlers
 async function handleStartCommand(chatId: string | number) {
-  const stats = await getWalletStats() // ADDED AWAIT
+  const stats = await getWalletStats()
   const message = `🤖 *Welcome to for.meme Bot!*\n\n` +
     `I manage wallet registrations from the for.meme website.\n\n` +
     `📊 *Current Stats:*\n` +
@@ -111,8 +120,8 @@ async function handleStartCommand(chatId: string | number) {
 }
 
 async function handleWalletsCommand(chatId: string | number) {
-  const stats = await getWalletStats() // ADDED AWAIT
-
+  const stats = await getWalletStats()
+  
   let message = `📊 *All Wallet Statistics*\n\n`
   message += `💰 *Total Wallets:* ${stats.total}\n`
   message += `📈 *Registered Today:* ${stats.today}\n`
@@ -133,7 +142,7 @@ async function handleWalletsCommand(chatId: string | number) {
 }
 
 async function handleStatsCommand(chatId: string | number) {
-  const stats = await getWalletStats() // ADDED AWAIT
+  const stats = await getWalletStats()
 
   const message = `📈 *Quick Stats*\n\n` +
     `• Total Wallets: ${stats.total}\n` +
@@ -145,7 +154,7 @@ async function handleStatsCommand(chatId: string | number) {
 }
 
 async function handleExportCommand(chatId: string | number) {
-  const allWallets = await getAllWallets() // ADDED AWAIT
+  const allWallets = await getAllWallets()
 
   if (allWallets.length === 0) {
     await sendTelegramMessage(chatId, 'No wallets found in database.')
