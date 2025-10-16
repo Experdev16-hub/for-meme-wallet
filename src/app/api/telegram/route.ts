@@ -111,7 +111,7 @@ async function handleStartCommand(chatId: string | number) {
 }
 
 async function handleWalletsCommand(chatId: string | number) {
-  const stats = getWalletStats()
+  const stats = await getWalletStats()
   
   let message = `📊 *All Wallet Statistics*\n\n`
   message += `💰 *Total Wallets:* ${stats.total}\n`
@@ -133,7 +133,7 @@ async function handleWalletsCommand(chatId: string | number) {
 }
 
 async function handleStatsCommand(chatId: string | number) {
-  const stats = getWalletStats()
+  const stats = await getWalletStats()
   
   const message = `📈 *Quick Stats*\n\n` +
     `• Total Wallets: ${stats.total}\n` +
@@ -145,7 +145,7 @@ async function handleStatsCommand(chatId: string | number) {
 }
 
 async function handleExportCommand(chatId: string | number) {
-  const allWallets = getAllWallets()
+  const allWallets = await getAllWallets()
   
   if (allWallets.length === 0) {
     await sendTelegramMessage(chatId, 'No wallets found in database.')
