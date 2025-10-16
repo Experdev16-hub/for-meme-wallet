@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
   const setup = url.searchParams.get('setup')
 
   if (setup === 'webhook' && TELEGRAM_BOT_TOKEN) {
-    const webhookUrl = `https://for-meme-wallet.vercel.app/api/telegram`
+    const webhookUrl = `https://for-meme-wallet-gtcc.vercel.app/api/telegram`
 
     const response = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${webhookUrl}`
