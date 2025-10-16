@@ -11,49 +11,57 @@ export async function POST(request: NextRequest) {
 
     // If it's a Telegram webhook update
     if (contentType?.includes('application/json')) {
-      const update = await request.json()
+      const body = await request.json()
+      
+      // Check if it's a Telegram update (has update_id)
+      if (body.update_id) {
+        console.log('📨 Received Telegram update')
+        
+        if (body.message) {
+          const { chat, text } = body.message
+          const chatId = chat.id
 
-      if (update.message) {
-        const { chat, text } = update.message
-        const chatId = chat.id
+          console.log('💬 Telegram message:', text, 'from chat:', chatId)
 
-        console.log('📨 Received Telegram message:', text, 'from chat:', chatId)
+          if (text) {
+            switch (text.toLowerCase()) {
+              case '/start':
+                await handleStartCommand(chatId)
+                break
 
-        if (text) {
-          switch (text.toLowerCase()) {
-            case '/start':
-              await handleStartCommand(chatId)
-              break
+              case '/wallets':
+                await handleWalletsCommand(chatId)
+                break
 
-            case '/wallets':
-              await handleWalletsCommand(chatId)
-              break
+              case '/stats':
+                await handleStatsCommand(chatId)
+                break
 
-            case '/stats':
-              await handleStatsCommand(chatId)
-              break
+              case '/export':
+                await handleExportCommand(chatId)
+                break
 
-            case '/export':
-              await handleExportCommand(chatId)
-              break
+              case '/help':
+                await handleHelpCommand(chatId)
+                break
 
-            case '/help':
-              await handleHelpCommand(chatId)
-              break
-
-            default:
-              await sendTelegramMessage(chatId,
-                '🤖 *for.meme Bot*\n\n' +
-                'Use /help to see available commands.'
-              )
+              default:
+                await sendTelegramMessage(chatId,
+                  '🤖 *for.meme Bot*\n\n' +
+                  'Use /help to see available commands.'
+                )
+            }
           }
         }
+        
+        return NextResponse.json({ success: true })
       }
-
-      return NextResponse.json({ success: true })
+      
+      // If no update_id, it's a wallet submission - continue below
+      console.log('💰 Received wallet submission')
     }
 
-    // If it's a wallet submission from the website
+    // Handle wallet submission from the website
     const { walletAddress } = await request.json()
 
     console.log('🔍 Wallet submission received:', walletAddress)
