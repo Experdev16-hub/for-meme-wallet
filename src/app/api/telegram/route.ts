@@ -8,11 +8,11 @@ const TELEGRAM_CHAT_ID: string | undefined = process.env.TELEGRAM_CHAT_ID
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type')
-    
+
     // If it's a Telegram webhook update
     if (contentType?.includes('application/json')) {
       const update = await request.json()
-      
+
       if (update.message) {
         const { chat, text } = update.message
         const chatId = chat.id
@@ -24,35 +24,35 @@ export async function POST(request: NextRequest) {
             case '/start':
               await handleStartCommand(chatId)
               break
-              
+
             case '/wallets':
               await handleWalletsCommand(chatId)
               break
-              
+
             case '/stats':
               await handleStatsCommand(chatId)
               break
-              
+
             case '/export':
               await handleExportCommand(chatId)
               break
-              
+
             case '/help':
               await handleHelpCommand(chatId)
               break
-              
+
             default:
-              await sendTelegramMessage(chatId, 
+              await sendTelegramMessage(chatId,
                 '🤖 *for.meme Bot*\n\n' +
                 'Use /help to see available commands.'
               )
           }
         }
       }
-      
+
       return NextResponse.json({ success: true })
     }
-    
+
     // If it's a wallet submission from the website
     const { walletAddress } = await request.json()
 
@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       source: 'for.meme'
     }
-    
-    addWallet(walletData)
-    const stats = await getWalletStats()
+
+    await addWallet(walletData) // ADDED AWAIT
+    const stats = await getWalletStats() // ADDED AWAIT
 
     // Send notification to Telegram
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       await sendTelegramMessage(TELEGRAM_CHAT_ID, notificationMessage)
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       totalWallets: stats.total,
       position: stats.total
@@ -99,25 +99,25 @@ export async function POST(request: NextRequest) {
 
 // Command handlers
 async function handleStartCommand(chatId: string | number) {
-  const stats = await getWalletStats()
+  const stats = await getWalletStats() // ADDED AWAIT
   const message = `🤖 *Welcome to for.meme Bot!*\n\n` +
     `I manage wallet registrations from the for.meme website.\n\n` +
     `📊 *Current Stats:*\n` +
     `• Total Wallets: ${stats.total}\n` +
     `• Registered Today: ${stats.today}\n\n` +
     `Use /help to see all available commands.`
-  
+
   await sendTelegramMessage(chatId, message)
 }
 
 async function handleWalletsCommand(chatId: string | number) {
-  const stats = await getWalletStats()
-  
+  const stats = await getWalletStats() // ADDED AWAIT
+
   let message = `📊 *All Wallet Statistics*\n\n`
   message += `💰 *Total Wallets:* ${stats.total}\n`
   message += `📈 *Registered Today:* ${stats.today}\n`
   message += `⏰ *Last Updated:* ${new Date().toLocaleString()}\n\n`
-  
+
   if (stats.recent.length > 0) {
     message += `*Recent Wallets (last 10):*\n`
     stats.recent.slice(-10).forEach((wallet, index) => {
@@ -133,8 +133,8 @@ async function handleWalletsCommand(chatId: string | number) {
 }
 
 async function handleStatsCommand(chatId: string | number) {
-  const stats = await getWalletStats()
-  
+  const stats = await getWalletStats() // ADDED AWAIT
+
   const message = `📈 *Quick Stats*\n\n` +
     `• Total Wallets: ${stats.total}\n` +
     `• Registered Today: ${stats.today}\n` +
@@ -145,15 +145,15 @@ async function handleStatsCommand(chatId: string | number) {
 }
 
 async function handleExportCommand(chatId: string | number) {
-  const allWallets = await getAllWallets()
-  
+  const allWallets = await getAllWallets() // ADDED AWAIT
+
   if (allWallets.length === 0) {
     await sendTelegramMessage(chatId, 'No wallets found in database.')
     return
   }
 
   let message = `📁 *All Wallets (${allWallets.length})*\n\n`
-  
+
   allWallets.forEach((wallet, index) => {
     const time = new Date(wallet.timestamp).toLocaleString()
     message += `${index + 1}. \`${wallet.address}\`\n   ⏰ ${time}\n\n`
@@ -196,10 +196,10 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
         }),
       }
     )
-    
+
     const result = await response.json()
     console.log('📤 Sent Telegram message:', result.ok ? '✅ Success' : '❌ Failed')
-    
+
   } catch (error) {
     console.error('❌ Error sending Telegram message:', error)
   }
@@ -212,13 +212,13 @@ export async function GET(request: NextRequest) {
 
   if (setup === 'webhook' && TELEGRAM_BOT_TOKEN) {
     const webhookUrl = `https://for-meme-wallet.vercel.app/api/telegram`
-    
+
     const response = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${webhookUrl}`
     )
-    
+
     const result = await response.json()
-    
+
     return NextResponse.json({
       success: result.ok,
       webhook: webhookUrl,
