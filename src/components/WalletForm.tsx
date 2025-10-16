@@ -1,6 +1,9 @@
 'use client'
 import { useState, FormEvent } from 'react'
-import { WalletFormProps, ApiResponse } from '../types'
+
+interface WalletFormProps {
+  onSubmission: (submitted: boolean) => void;
+}
 
 export default function WalletForm({ onSubmission }: WalletFormProps) {
   const [walletAddress, setWalletAddress] = useState<string>('')
@@ -8,44 +11,56 @@ export default function WalletForm({ onSubmission }: WalletFormProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     
+    console.log('🔄 Form submitted')
+    console.log('📝 Wallet address:', walletAddress)
+
     if (!walletAddress.trim()) {
-      alert('Please enter a valid wallet address')
+      alert('Please enter your wallet address')
       return
     }
 
-    // Enhanced wallet address validation
-    if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      alert('Please enter a valid Ethereum wallet address (starts with 0x, 42 characters total)')
+    // Basic validation - just check it starts with 0x and has some length
+    if (!walletAddress.startsWith('0x') || walletAddress.length < 10) {
+      alert('Please enter a valid wallet address')
       return
     }
 
     setIsLoading(true)
 
     try {
+      console.log('🚀 Sending to API...')
+      
+      const payload = {
+        walletAddress: walletAddress
+      }
+      
+      console.log('📦 Payload:', payload)
+
       const response = await fetch('/api/telegram', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          walletAddress,
-          timestamp: new Date().toISOString(),
-          source: 'for.meme'
-        }),
+        body: JSON.stringify(payload),
       })
 
-      const data: ApiResponse = await response.json()
+      console.log('📨 Response status:', response.status)
+      
+      const data = await response.json()
+      console.log('📊 Response data:', data)
 
       if (response.ok) {
+        console.log('✅ Success - calling onSubmission')
         onSubmission(true)
         setWalletAddress('')
       } else {
         throw new Error(data.error || 'Failed to submit wallet address')
       }
     } catch (error) {
-      console.error('Error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to submit wallet address. Please try again.')
+      console.error('❌ Error:', error)
+      alert('Failed to submit wallet address. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -86,7 +101,6 @@ export default function WalletForm({ onSubmission }: WalletFormProps) {
         <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </button>
 
-      {/* Quick info */}
       <div className="text-center">
         <p className="text-xs text-gray-500">
           Supported: Ethereum, Polygon, BSC
