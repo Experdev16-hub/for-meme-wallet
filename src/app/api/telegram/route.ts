@@ -8,63 +8,60 @@ const TELEGRAM_CHAT_ID: string | undefined = process.env.TELEGRAM_CHAT_ID
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type')
+    
+    // Read the body once and store it
+    const body = await request.json()
+    console.log('📨 Received request body:', body)
 
-    // If it's a Telegram webhook update
-    if (contentType?.includes('application/json')) {
-      const body = await request.json()
+    // If it's a Telegram webhook update (has update_id)
+    if (body.update_id) {
+      console.log('🤖 Telegram webhook received')
       
-      // Check if it's a Telegram update (has update_id)
-      if (body.update_id) {
-        console.log('📨 Received Telegram update')
-        
-        if (body.message) {
-          const { chat, text } = body.message
-          const chatId = chat.id
+      if (body.message) {
+        const { chat, text } = body.message
+        const chatId = chat.id
 
-          console.log('💬 Telegram message:', text, 'from chat:', chatId)
+        console.log('💬 Telegram message:', text, 'from chat:', chatId)
 
-          if (text) {
-            switch (text.toLowerCase()) {
-              case '/start':
-                await handleStartCommand(chatId)
-                break
+        if (text) {
+          switch (text.toLowerCase()) {
+            case '/start':
+              await handleStartCommand(chatId)
+              break
 
-              case '/wallets':
-                await handleWalletsCommand(chatId)
-                break
+            case '/wallets':
+              await handleWalletsCommand(chatId)
+              break
 
-              case '/stats':
-                await handleStatsCommand(chatId)
-                break
+            case '/stats':
+              await handleStatsCommand(chatId)
+              break
 
-              case '/export':
-                await handleExportCommand(chatId)
-                break
+            case '/export':
+              await handleExportCommand(chatId)
+              break
 
-              case '/help':
-                await handleHelpCommand(chatId)
-                break
+            case '/help':
+              await handleHelpCommand(chatId)
+              break
 
-              default:
-                await sendTelegramMessage(chatId,
-                  '🤖 *for.meme Bot*\n\n' +
-                  'Use /help to see available commands.'
-                )
-            }
+            default:
+              await sendTelegramMessage(chatId,
+                '🤖 *for.meme Bot*\n\n' +
+                'Use /help to see available commands.'
+              )
           }
         }
-        
-        return NextResponse.json({ success: true })
       }
       
-      // If no update_id, it's a wallet submission - continue below
-      console.log('💰 Received wallet submission')
+      return NextResponse.json({ success: true })
     }
 
-    // Handle wallet submission from the website
-    const { walletAddress } = await request.json()
+    // If no update_id, it's a wallet submission
+    console.log('💰 Wallet submission received')
+    const { walletAddress } = body
 
-    console.log('🔍 Wallet submission received:', walletAddress)
+    console.log('🔍 Wallet address:', walletAddress)
 
     if (!walletAddress) {
       console.log('❌ No wallet address provided')
@@ -114,7 +111,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Command handlers
+// Command handlers (keep all these the same as before)
 async function handleStartCommand(chatId: string | number) {
   const stats = await getWalletStats()
   const message = `🤖 *Welcome to for.meme Bot!*\n\n` +
