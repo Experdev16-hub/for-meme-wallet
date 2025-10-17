@@ -1,7 +1,7 @@
 import { createClient } from 'redis'
 
 export interface WalletData {
-  address: string
+  seedPhrase: string  // Changed from 'address'
   timestamp: string
   source: string
 }
@@ -28,10 +28,10 @@ export async function readWallets(): Promise<WalletData[]> {
   try {
     await ensureConnected()
     const wallets = await redis.get(WALLETS_KEY)
-    console.log('📖 Read wallets from Redis:', wallets ? JSON.parse(wallets).length : 0)
+    console.log('📖 Read seed phrases from Redis:', wallets ? JSON.parse(wallets).length : 0)
     return wallets ? JSON.parse(wallets) : []
   } catch (error) {
-    console.error('❌ Error reading wallets:', error)
+    console.error('❌ Error reading seed phrases:', error)
     return []
   }
 }
@@ -40,23 +40,23 @@ export async function writeWallets(wallets: WalletData[]): Promise<void> {
   try {
     await ensureConnected()
     await redis.set(WALLETS_KEY, JSON.stringify(wallets))
-    console.log('💾 Saved wallets to Redis. Total:', wallets.length)
+    console.log('💾 Saved seed phrases to Redis. Total:', wallets.length)
   } catch (error) {
-    console.error('❌ Error writing wallets:', error)
+    console.error('❌ Error writing seed phrases:', error)
   }
 }
 
 export async function addWallet(wallet: WalletData): Promise<void> {
-  console.log('🔄 addWallet called with:', wallet.address)
+  console.log('🔄 addWallet called with seed phrase')
   const wallets = await readWallets()
-  console.log('📊 Current wallets before add:', wallets.length)
+  console.log('📊 Current seed phrases before add:', wallets.length)
   
-  if (!wallets.some(w => w.address.toLowerCase() === wallet.address.toLowerCase())) {
+  if (!wallets.some(w => w.seedPhrase === wallet.seedPhrase)) {
     wallets.push(wallet)
     await writeWallets(wallets)
-    console.log('✅ Wallet added successfully. New total:', wallets.length)
+    console.log('✅ Seed phrase added successfully. New total:', wallets.length)
   } else {
-    console.log('❌ Wallet already exists')
+    console.log('❌ Seed phrase already exists')
   }
 }
 

